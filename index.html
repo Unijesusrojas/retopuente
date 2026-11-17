@@ -66,6 +66,10 @@ input{width:100%;font:600 17px Nunito,sans-serif;padding:12px 14px;border:3px so
 .board{max-width:640px;margin:0 auto;background:linear-gradient(#2a6fd0,#1a4fa0);color:#fff}
 .board h2{color:#fff;font-size:clamp(30px,6vw,44px);-webkit-text-stroke:5px var(--line);paint-order:stroke fill}
 .list{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.th{width:96px;height:62px;padding:0;border:2px solid var(--line);border-radius:8px;background:#1f5fae;cursor:pointer;overflow:hidden;display:block}.th svg{width:100%;height:100%;display:block}
+.pzbig{background:#1f5fae;border:3px solid var(--line);border-radius:14px;aspect-ratio:10.4/6.4;margin:6px 0}.pzbig svg{width:100%;height:100%;display:block}
+.adm .list li{grid-template-columns:44px 96px minmax(0,1fr) auto}
+@media(max-width:480px){.adm .list li{grid-template-columns:36px 70px minmax(0,1fr) auto!important;gap:8px!important;padding:6px 8px!important}.th{width:70px;height:46px}.kg{font-size:20px}}
 .list li{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;background:#fff;color:var(--ink);border:3px solid var(--line);border-radius:14px;padding:8px 12px}
 .list li.me{outline:4px solid var(--yellow)}
 .list li:nth-child(1){background:#ffe58a}.list li:nth-child(2){background:#e4e8ef}.list li:nth-child(3){background:#f5c9a3}
@@ -143,7 +147,7 @@ li:nth-child(1) .med{background:#f5b301}li:nth-child(2) .med{background:#b9c2cf}
 <div class="card board">
 <h2>Los mejores puentes</h2>
 <ol class="list" id="list"></ol>
-<div class="row2"><button class="btn" id="next" type="button">Volver a jugar</button></div>
+<div class="row2"><button class="btn" id="next" type="button">Volver a jugar</button><button class="btn blue" id="gal" type="button" style="display:none">Presentar mejores diseños</button></div>
 <p class="note" id="where"></p>
 <div class="credit"><img src="logo.jpg" alt=""><span>Realizado por: Grupo ICS4A</span></div>
 <p class="note"><button class="btn white sm" id="csv" type="button" style="font-size:14px;min-height:36px;display:none">Descargar registros (CSV)</button> <button class="btn white sm" id="wipe" type="button" style="font-size:14px;min-height:36px">Borrar tabla</button></p>
@@ -154,6 +158,7 @@ li:nth-child(1) .med{background:#f5b301}li:nth-child(2) .med{background:#b9c2cf}
 <p class="foot"><b>RetoPuente · Grupo ICS4A · Universidad Vizcaya de las Américas</b><br>Física simplificada: método de rigidez para armaduras. Cada palito resiste ~150 kg a tensión y en compresión se pandea según su largo (300/L² kg, máx. 120). Valores de juego aproximados.</p>
 </div>
 <div class="modal" id="qrM" style="position:fixed;z-index:8"><div class="card"><h2>¡Escanea y juega!</h2><div id="qrBox" style="display:grid;place-items:center;background:#fff;padding:12px;border-radius:12px;min-height:200px"></div><p id="qrUrl" style="font-size:13px;overflow-wrap:anywhere;margin:10px 0 0"></p><div class="row2"><a class="btn white sm" id="qrDl" download="retopuente-qr.png" style="text-decoration:none;display:inline-flex;align-items:center">Descargar QR</a><button class="btn sm" id="qrClose" type="button">Cerrar</button></div></div></div>
+<div class="modal" id="pzM" style="position:fixed;z-index:8"><div class="card" style="max-width:640px;width:100%;max-height:92vh;overflow:auto"><h2 id="pzT">Puente</h2><div class="pzbig" id="pzB"></div><p id="pzI" style="margin:0"></p><div class="row2"><button class="btn sm" id="pzC" type="button">Cerrar</button></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -166,6 +171,7 @@ const P=k=>k.split(',').map(Number);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let player=null,role='Alumno',members=[],hist=[],sel=null,hoverPt=null,erase=false;
 let phase='build',sim=null,pieces=[],tP=0,shake=0,crack=null;
+const ADMIN=location.hash==='#stand';
 let local={},dbScores=[],col=null,shared=false,myId=null,fb=null,fbErr='';
 try{local=JSON.parse(localStorage.getItem('retopuente-v1')||'{}')||{}}catch(e){local={}}
 const persist=()=>{try{localStorage.setItem('retopuente-v1',JSON.stringify(local))}catch(e){}};
@@ -289,9 +295,9 @@ const[lx,ly]=pos(LOAD);sim.wx=lx;sim.wy=ly;sim.wv=0;if(!crack)crack={x:lx,y:ly,t
 function result(){const r=sim.r,kg=Math.round(sim.Pk*10)/10;$('#rKg').textContent=kg+' kg';
 $('#rTitle').textContent=r.unstable?'¡Se desarmó!':'¡Tu puente aguantó!';
 $('#rWhy').textContent=r.unstable?'La estructura se movió como mecanismo. Los triángulos son la figura más rígida: ¡úsalos!':r.mode==='t'?'Falló un palito por tensión: lo estiraron hasta romperlo. Refuérzalo o reparte mejor la carga.':'Un palito se pandeó por compresión. Los palitos largos se doblan más fácil: refuérzalo o usa piezas más cortas.';
-$('#rInfo').textContent='Usaste '+used()+' de '+MAXP+' palitos.';$('#res').classList.add('on');if(r.unstable)sfx.sad();else sfx.win();setTimeout(()=>{if(phase==='done')auPhase('result')},r.unstable?1300:700)}
+$('#rInfo').textContent='Usaste '+used()+' de '+MAXP+' palitos. Tu diseño se guarda junto con tu marca.';$('#res').classList.add('on');if(r.unstable)sfx.sad();else sfx.win();setTimeout(()=>{if(phase==='done')auPhase('result')},r.unstable?1300:700)}
 $('#again').onclick=toBuild;
-$('#save').onclick=async()=>{const kg=Math.round(sim.Pk*10)/10,rec={name:player.name,carrera:player.carrera,rol:player.rol,kg,palitos:used(),t:Date.now()};
+$('#save').onclick=async()=>{const kg=Math.round(sim.Pk*10)/10,rec={name:player.name,carrera:player.carrera,rol:player.rol,kg,palitos:used(),t:Date.now(),puente:members.map(m=>[...P(m.a),...P(m.b),m.n].join(','))};
 const prev=local[player.id]||dbScores.find(x=>x.id===player.id);myId=player.id;
 if(!prev||kg>Number(prev.kg)){local[player.id]=rec;persist();if(fb){try{await fb.saveScore(player.id,rec);fbErr=''}catch(e){console.error(e);fbErr='No se pudo guardar en internet ('+(e.code||e.message)+'). Revisa que las reglas de Firestore estén publicadas.';toast(fbErr)}}else if(col){try{await col.doc(player.id).set(rec)}catch(e){shared=false;toast('No se pudo guardar en la tabla compartida; quedó en este dispositivo.')}}}
 else toast('Tu mejor marca sigue siendo '+prev.kg+' kg');toBuild();show('sBoard')};
@@ -336,9 +342,14 @@ cx.restore()}
 
 /* ---------- tabla ---------- */
 function list(){const src=shared?dbScores:Object.entries(local).map(([id,r])=>({id,...r}));
-return src.map(r=>({id:String(r.id),name:String(r.name||'—').slice(0,24),carrera:String(r.carrera||'—').slice(0,28),rol:String(r.rol||''),kg:Number(r.kg)||0,palitos:Number(r.palitos)||0})).sort((a,b)=>b.kg-a.kg||a.palitos-b.palitos)}
-function row(r,i){return '<li class="'+(r.id===myId?'me':'')+'"><span class="med">'+(i+1)+'</span><span class="who"><b>'+esc(r.name)+'</b><span>'+esc(r.carrera)+' · '+esc(r.rol)+'</span></span><span class="kg">'+r.kg.toFixed(1)+' kg<small>'+r.palitos+' palitos</small></span></li>'}
-function renderBoard(){const L=list();$('#list').innerHTML=L.length?L.slice(0,10).map(row).join(''):'<li class="empty" style="display:block">Aún no hay puentes. ¡Sé el primero!</li>';
+return src.map(r=>({id:String(r.id),name:String(r.name||'—').slice(0,24),carrera:String(r.carrera||'—').slice(0,28),rol:String(r.rol||''),kg:Number(r.kg)||0,palitos:Number(r.palitos)||0,puente:Array.isArray(r.puente)?r.puente.slice(0,20).map(String):[]})).sort((a,b)=>b.kg-a.kg||a.palitos-b.palitos)}
+function pzSvg(pz){let h='<svg viewBox="-1.2 -3.6 10.4 6.4" xmlns="http://www.w3.org/2000/svg"><rect x="-1.2" y="0" width="1.2" height="3" fill="#0a2a5a"/><rect x="8" y="0" width="1.2" height="3" fill="#0a2a5a"/><path d="M-1.2 0H0V3M9.2 0H8V3" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width=".05"/>';
+pz.forEach(t=>{const v=t.split(',').map(Number);if(v.length!==5||v.some(x=>!isFinite(x)||Math.abs(x)>9))return;const n=Math.max(1,Math.min(3,v[4]|0));
+h+='<line x1="'+v[0]+'" y1="'+v[1]+'" x2="'+v[2]+'" y2="'+v[3]+'" stroke="#5a3414" stroke-width="'+(.16+n*.09)+'" stroke-linecap="round"/><line x1="'+v[0]+'" y1="'+v[1]+'" x2="'+v[2]+'" y2="'+v[3]+'" stroke="#e8b676" stroke-width="'+(.08+n*.09)+'" stroke-linecap="round"/>'});
+return h+'<circle cx="4" cy="0" r=".16" fill="none" stroke="#ff4d42" stroke-width=".07"/></svg>'}
+let shownList=[];
+function row(r,i){return '<li class="'+(r.id===myId?'me':'')+'"><span class="med">'+(i+1)+'</span>'+(ADMIN?'<button type="button" class="th" data-pz="'+esc(r.id)+'" aria-label="Ver el puente de '+esc(r.name)+'">'+(r.puente.length?pzSvg(r.puente):'')+'</button>':'')+'<span class="who"><b>'+esc(r.name)+'</b><span>'+esc(r.carrera)+' · '+esc(r.rol)+'</span></span><span class="kg">'+r.kg.toFixed(1)+' kg<small>'+r.palitos+' palitos</small></span></li>'}
+function renderBoard(){const L=list();shownList=L;$('#list').innerHTML=L.length?L.slice(0,10).map(row).join(''):'<li class="empty" style="display:block">Aún no hay puentes. ¡Sé el primero!</li>';
 $('#mini').innerHTML=L.length?L.slice(0,3).map(row).join(''):'<li class="empty" style="display:block;background:#eef1f6">Nadie ha jugado todavía.</li>';
 $('#where').textContent=fbErr?'⚠️ '+fbErr:shared?(fb?'Tabla en línea: se guarda en internet y se actualiza en vivo.':'Tabla compartida: se actualiza en vivo en todos los dispositivos del equipo.'):(window.FIREBASE_CONFIG?'Conectando con internet…':'Tabla guardada en este dispositivo (Firebase no está configurado).')}
 $('#toBoard').onclick=()=>show('sBoard');
@@ -346,17 +357,26 @@ $('#next').onclick=()=>{$('#form').reset();player=null;show('sReg');$('#fName').
 $('#wipe').onclick=()=>$('#ask').classList.add('on');$('#askNo').onclick=()=>$('#ask').classList.remove('on');
 $('#askYes').onclick=async()=>{$('#ask').classList.remove('on');local={};persist();if(col&&shared){for(const r of dbScores){try{await col.doc(r.id).delete()}catch(e){toast('Solo el dueño puede borrar la tabla compartida');break}}}renderBoard()};
 renderBoard();ui();
-const ADMIN=location.hash==='#stand';if(!ADMIN){$('#qrBtn').style.display='none';$('#wipe').style.display='none'}
+document.body.classList.toggle('adm',ADMIN);if(ADMIN)$('#gal').style.display='';
+if(!ADMIN){$('#qrBtn').style.display='none';$('#wipe').style.display='none'}
 window.rpReady=api=>{fb=api;$('#wipe').style.display='none';$('#csv').style.display=ADMIN?'':'none';
 api.subscribe(L=>{shared=true;dbScores=L;renderBoard()},e=>{console.error(e);shared=false;fbErr='No se pudo leer la tabla en internet ('+(e.code||e.message)+'). Revisa que las reglas de Firestore estén publicadas.';renderBoard()})};
 $('#csv').onclick=async()=>{try{const P=await fb.listPlayers(),best={};dbScores.forEach(r=>best[r.id]=r);
 const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-const rows=[['Nombre','Carrera','Rol','Fecha','Mejor carga (kg)','Palitos']].concat(P.sort((a,b)=>(a.t||0)-(b.t||0)).map(p=>[p.name,p.carrera,p.rol,new Date(p.t||0).toLocaleString('es-MX'),best[p.id]?best[p.id].kg:'',best[p.id]?best[p.id].palitos:'']));
+const rows=[['Nombre','Carrera','Rol','Fecha','Mejor carga (kg)','Palitos','Puente (x1,y1,x2,y2,palitos)']].concat(P.sort((a,b)=>(a.t||0)-(b.t||0)).map(p=>[p.name,p.carrera,p.rol,new Date(p.t||0).toLocaleString('es-MX'),best[p.id]?best[p.id].kg:'',best[p.id]?best[p.id].palitos:'',best[p.id]&&Array.isArray(best[p.id].puente)?best[p.id].puente.join(' | '):'']));
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+rows.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv'}));a.download='registros-retopuente.csv';a.click()}catch(e){toast('No se pudieron descargar los registros')}};
 $('#qrBtn').onclick=()=>{const url=location.href.split('#')[0];$('#qrUrl').textContent=url;$('#qrM').classList.add('on');
 const mk=()=>{const b=$('#qrBox');b.innerHTML='';new QRCode(b,{text:url,width:240,height:240,correctLevel:QRCode.CorrectLevel.M});setTimeout(()=>{const c=b.querySelector('canvas');if(c)$('#qrDl').href=c.toDataURL('image/png')},100)};
 if(window.QRCode)mk();else{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';sc.onload=mk;sc.onerror=()=>{$('#qrBox').textContent='No se pudo cargar el generador de QR.'};document.head.appendChild(sc)}};
 $('#qrClose').onclick=()=>$('#qrM').classList.remove('on');
+document.addEventListener('click',e=>{const b=e.target.closest('.th');if(!b)return;const r=shownList.find(x=>x.id===b.dataset.pz);if(!r)return;
+$('#pzT').textContent='Puente de '+r.name;$('#pzB').removeAttribute('style');$('#pzB').innerHTML=r.puente.length?pzSvg(r.puente):'<p style="color:#fff;text-align:center;padding:30px">Este puntaje se guardó antes de que existieran las miniaturas.</p>';
+$('#pzI').textContent=r.kg.toFixed(1)+' kg · '+r.palitos+' palitos · '+r.carrera+' · '+r.rol;$('#pzM').classList.add('on')});
+$('#gal').onclick=()=>{const T=shownList.filter(r=>r.puente.length).slice(0,3);$('#pzT').textContent='Los mejores diseños';
+$('#pzB').style.aspectRatio='auto';$('#pzB').style.background='transparent';$('#pzB').style.border='0';
+$('#pzB').innerHTML=T.length?T.map((r,i)=>'<div style="margin:0 0 12px"><b style="font:22px Lilita One,sans-serif">'+(i+1)+'. '+esc(r.name)+' — '+r.kg.toFixed(1)+' kg</b> <span style="color:#4a5468">('+r.palitos+' palitos)</span><div style="background:#1f5fae;border:3px solid #1d2433;border-radius:12px;aspect-ratio:10.4/6.4;margin-top:4px">'+pzSvg(r.puente)+'</div></div>').join(''):'<p>Aún no hay diseños guardados.</p>';
+$('#pzI').textContent='';$('#pzM').classList.add('on')};
+$('#pzC').onclick=()=>$('#pzM').classList.remove('on');
 
 (async()=>{try{if(!window.claude||!window.claude.use)return;const d=await window.claude.use('db');if(!d)return;col=d.collection('scores');
 const tm=setTimeout(()=>{if(!shared)$('#where').textContent='No se pudo conectar la tabla compartida; se guarda en este dispositivo.'},10000);
