@@ -166,7 +166,7 @@ const P=k=>k.split(',').map(Number);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let player=null,role='Alumno',members=[],hist=[],sel=null,hoverPt=null,erase=false;
 let phase='build',sim=null,pieces=[],tP=0,shake=0,crack=null;
-let local={},dbScores=[],col=null,shared=false,myId=null,fb=null;
+let local={},dbScores=[],col=null,shared=false,myId=null,fb=null,fbErr='';
 try{local=JSON.parse(localStorage.getItem('retopuente-v1')||'{}')||{}}catch(e){local={}}
 const persist=()=>{try{localStorage.setItem('retopuente-v1',JSON.stringify(local))}catch(e){}};
 
@@ -293,7 +293,7 @@ $('#rInfo').textContent='Usaste '+used()+' de '+MAXP+' palitos.';$('#res').class
 $('#again').onclick=toBuild;
 $('#save').onclick=async()=>{const kg=Math.round(sim.Pk*10)/10,rec={name:player.name,carrera:player.carrera,rol:player.rol,kg,palitos:used(),t:Date.now()};
 const prev=local[player.id]||dbScores.find(x=>x.id===player.id);myId=player.id;
-if(!prev||kg>Number(prev.kg)){local[player.id]=rec;persist();if(fb){try{await fb.saveScore(player.id,rec)}catch(e){toast('No se pudo guardar en internet; quedó en este dispositivo.')}}else if(col){try{await col.doc(player.id).set(rec)}catch(e){shared=false;toast('No se pudo guardar en la tabla compartida; quedó en este dispositivo.')}}}
+if(!prev||kg>Number(prev.kg)){local[player.id]=rec;persist();if(fb){try{await fb.saveScore(player.id,rec);fbErr=''}catch(e){console.error(e);fbErr='No se pudo guardar en internet ('+(e.code||e.message)+'). Revisa que las reglas de Firestore estén publicadas.';toast(fbErr)}}else if(col){try{await col.doc(player.id).set(rec)}catch(e){shared=false;toast('No se pudo guardar en la tabla compartida; quedó en este dispositivo.')}}}
 else toast('Tu mejor marca sigue siendo '+prev.kg+' kg');toBuild();show('sBoard')};
 
 /* ---------- animación ---------- */
@@ -340,14 +340,15 @@ return src.map(r=>({id:String(r.id),name:String(r.name||'—').slice(0,24),carre
 function row(r,i){return '<li class="'+(r.id===myId?'me':'')+'"><span class="med">'+(i+1)+'</span><span class="who"><b>'+esc(r.name)+'</b><span>'+esc(r.carrera)+' · '+esc(r.rol)+'</span></span><span class="kg">'+r.kg.toFixed(1)+' kg<small>'+r.palitos+' palitos</small></span></li>'}
 function renderBoard(){const L=list();$('#list').innerHTML=L.length?L.slice(0,10).map(row).join(''):'<li class="empty" style="display:block">Aún no hay puentes. ¡Sé el primero!</li>';
 $('#mini').innerHTML=L.length?L.slice(0,3).map(row).join(''):'<li class="empty" style="display:block;background:#eef1f6">Nadie ha jugado todavía.</li>';
-$('#where').textContent=shared?'Tabla compartida: se actualiza en vivo en todos los dispositivos del equipo.':'Tabla guardada en este dispositivo.'}
+$('#where').textContent=fbErr?'⚠️ '+fbErr:shared?(fb?'Tabla en línea: se guarda en internet y se actualiza en vivo.':'Tabla compartida: se actualiza en vivo en todos los dispositivos del equipo.'):(window.FIREBASE_CONFIG?'Conectando con internet…':'Tabla guardada en este dispositivo (Firebase no está configurado).')}
 $('#toBoard').onclick=()=>show('sBoard');
 $('#next').onclick=()=>{$('#form').reset();player=null;show('sReg');$('#fName').focus()};
 $('#wipe').onclick=()=>$('#ask').classList.add('on');$('#askNo').onclick=()=>$('#ask').classList.remove('on');
 $('#askYes').onclick=async()=>{$('#ask').classList.remove('on');local={};persist();if(col&&shared){for(const r of dbScores){try{await col.doc(r.id).delete()}catch(e){toast('Solo el dueño puede borrar la tabla compartida');break}}}renderBoard()};
 renderBoard();ui();
-window.rpReady=api=>{fb=api;$('#wipe').style.display='none';$('#csv').style.display='';
-api.subscribe(L=>{shared=true;dbScores=L;renderBoard();$('#where').textContent='Tabla en línea: se guarda en internet y se actualiza en vivo.'},e=>{console.error(e);shared=false;renderBoard()})};
+const ADMIN=location.hash==='#stand';if(!ADMIN){$('#qrBtn').style.display='none';$('#wipe').style.display='none'}
+window.rpReady=api=>{fb=api;$('#wipe').style.display='none';$('#csv').style.display=ADMIN?'':'none';
+api.subscribe(L=>{shared=true;dbScores=L;renderBoard()},e=>{console.error(e);shared=false;fbErr='No se pudo leer la tabla en internet ('+(e.code||e.message)+'). Revisa que las reglas de Firestore estén publicadas.';renderBoard()})};
 $('#csv').onclick=async()=>{try{const P=await fb.listPlayers(),best={};dbScores.forEach(r=>best[r.id]=r);
 const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
 const rows=[['Nombre','Carrera','Rol','Fecha','Mejor carga (kg)','Palitos']].concat(P.sort((a,b)=>(a.t||0)-(b.t||0)).map(p=>[p.name,p.carrera,p.rol,new Date(p.t||0).toLocaleString('es-MX'),best[p.id]?best[p.id].kg:'',best[p.id]?best[p.id].palitos:'']));
