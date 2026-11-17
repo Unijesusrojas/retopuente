@@ -1,21 +1,9 @@
-// ==============================================================
-//  CONFIGURACIÓN DE FIREBASE — RetoPuente (Grupo ICS4A)
-//  Paso 3 de la guía: pega aquí el objeto firebaseConfig que te
-//  da Firebase. Mientras esté en null, el juego guarda los
-//  puntajes solo en el dispositivo donde se juega.
-// ==============================================================
-
-window.FIREBASE_CONFIG = null;
-
-/* Ejemplo de cómo debe quedar (con TUS datos):
-
+// CONFIGURACIÓN DE FIREBASE — RetoPuente (Grupo ICS4A)
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSy...",
+  apiKey: "AIzaSyDmOVVnDR4nsjpmIZdqGpaOBnRn88-4B8o",
   authDomain: "retopuente-ics4a.firebaseapp.com",
   projectId: "retopuente-ics4a",
-  storageBucket: "retopuente-ics4a.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abc123"
+  storageBucket: "retopuente-ics4a.firebasestorage.app",
+  messagingSenderId: "658754226533",
+  appId: "1:658754226533:web:9a682064f2d1be58ba798c"
 };
-
-*/
