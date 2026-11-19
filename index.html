@@ -66,6 +66,17 @@ input{width:100%;font:600 17px Nunito,sans-serif;padding:12px 14px;border:3px so
 .board{max-width:640px;margin:0 auto;background:linear-gradient(#2a6fd0,#1a4fa0);color:#fff}
 .board h2{color:#fff;font-size:clamp(30px,6vw,44px);-webkit-text-stroke:5px var(--line);paint-order:stroke fill}
 .list{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.adminbox{background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.5);border-radius:14px;padding:10px 14px;margin:0 0 12px}
+.sw{display:flex;align-items:center;gap:12px;cursor:pointer;font-weight:800;margin:0}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sl{flex:none;width:56px;height:30px;border-radius:999px;background:#9aa3b5;border:3px solid var(--line);position:relative;transition:background .2s}
+.sl::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid var(--line);transition:transform .2s}
+.sw input:checked+.sl{background:var(--green)}.sw input:checked+.sl::after{transform:translateX(26px)}
+.sw input:focus-visible+.sl{outline:4px solid var(--yellow);outline-offset:2px}
+.list li.hid,.list li.hid:nth-child(n){grid-template-columns:48px minmax(0,1fr)!important;background:#fff}
+.ric{width:46px;height:46px;border-radius:12px;border:3px solid var(--line);display:grid;place-items:center}.ric svg{width:32px;height:32px}
+.ric.Alumno{background:#3d7fd6}.ric.Maestro{background:#3cb54a}.ric.Visita{background:#a54fd1}
+.when{font:700 13px Nunito,sans-serif;color:#4a5468;white-space:nowrap;text-align:right}
 .th{width:96px;height:62px;padding:0;border:2px solid var(--line);border-radius:8px;background:#1f5fae;cursor:pointer;overflow:hidden;display:block}.th svg{width:100%;height:100%;display:block}
 .pzbig{background:#1f5fae;border:3px solid var(--line);border-radius:14px;aspect-ratio:10.4/6.4;margin:6px 0}.pzbig svg{width:100%;height:100%;display:block}
 .adm .list li{grid-template-columns:44px 96px minmax(0,1fr) auto}
@@ -112,7 +123,7 @@ li:nth-child(1) .med{background:#f5b301}li:nth-child(2) .med{background:#b9c2cf}
 <li>Toca el mismo palito otra vez para <b>reforzarlo</b> (doble o triple).</li>
 <li>Presiona <b>¡Listo!</b>: le colgamos peso hasta que se caiga.</li>
 </ol><p style="margin:10px 0 0">Tip de ingeniero: los <b>triángulos</b> no se deforman, y los palitos largos se doblan (pandeo) más fácil cuando los aplastan.</p></div>
-<div class="card mini"><h3>Van ganando</h3><ol class="list" id="mini"></ol></div>
+<div class="card mini"><h3 id="miniTitle">Van ganando</h3><ol class="list" id="mini"></ol></div>
 </div>
 </div>
 </section>
@@ -145,7 +156,11 @@ li:nth-child(1) .med{background:#f5b301}li:nth-child(2) .med{background:#b9c2cf}
 
 <section class="screen" id="sBoard">
 <div class="card board">
-<h2>Los mejores puentes</h2>
+<h2 id="bTitle">Los mejores puentes</h2>
+<div class="adminbox" id="admBox" style="display:none">
+<label class="sw"><input type="checkbox" id="swShow" checked><span class="sl"></span><span id="swTxt">Tabla de ranking <b>visible</b> para el público</span></label>
+<p class="note" id="swNote" style="margin:4px 0 0"></p>
+</div>
 <ol class="list" id="list"></ol>
 <div class="row2"><button class="btn" id="next" type="button">Volver a jugar</button><button class="btn blue" id="gal" type="button" style="display:none">Presentar mejores diseños</button></div>
 <p class="note" id="where"></p>
@@ -172,6 +187,9 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let player=null,role='Alumno',members=[],hist=[],sel=null,hoverPt=null,erase=false;
 let phase='build',sim=null,pieces=[],tP=0,shake=0,crack=null;
 const ADMIN=location.hash==='#stand';
+let showScores=true,jugL={},dbJug=[],jugShared=false;
+try{jugL=JSON.parse(localStorage.getItem('retopuente-jug')||'{}')||{}}catch(e){jugL={}}
+try{const v=localStorage.getItem('retopuente-mostrar');if(v)showScores=v==='1'}catch(e){}
 let local={},dbScores=[],col=null,shared=false,myId=null,fb=null,fbErr='';
 try{local=JSON.parse(localStorage.getItem('retopuente-v1')||'{}')||{}}catch(e){local={}}
 const persist=()=>{try{localStorage.setItem('retopuente-v1',JSON.stringify(local))}catch(e){}};
@@ -231,6 +249,7 @@ function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.to
 $('#roles').addEventListener('click',e=>{const b=e.target.closest('.role');if(!b)return;role=b.dataset.r;document.querySelectorAll('.role').forEach(x=>x.setAttribute('aria-pressed',x===b))});
 $('#form').addEventListener('submit',e=>{e.preventDefault();const name=$('#fName').value.trim();if(!name){toast('Escribe tu nombre');return}
 player={id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,carrera:$('#fCar').value.trim()||'—',rol:role};
+jugL[player.id]={name:player.name,carrera:player.carrera,rol:player.rol,t:Date.now()};try{localStorage.setItem('retopuente-jug',JSON.stringify(jugL))}catch(e){}
 if(fb)fb.savePlayer(player.id,{name:player.name,carrera:player.carrera,rol:player.rol,t:Date.now()}).catch(e=>console.error(e));
 members=[];hist=[];sel=null;toBuild();$('#who').textContent=player.name+' · '+player.rol;show('sGame')});
 
@@ -342,24 +361,44 @@ cx.restore()}
 
 /* ---------- tabla ---------- */
 function list(){const src=shared?dbScores:Object.entries(local).map(([id,r])=>({id,...r}));
-return src.map(r=>({id:String(r.id),name:String(r.name||'—').slice(0,24),carrera:String(r.carrera||'—').slice(0,28),rol:String(r.rol||''),kg:Number(r.kg)||0,palitos:Number(r.palitos)||0,puente:Array.isArray(r.puente)?r.puente.slice(0,20).map(String):[]})).sort((a,b)=>b.kg-a.kg||a.palitos-b.palitos)}
+const seen=new Set();
+return src.map(r=>({id:String(r.id),name:String(r.name||'—').slice(0,24),carrera:String(r.carrera||'—').slice(0,28),rol:String(r.rol||''),kg:Number(r.kg)||0,palitos:Number(r.palitos)||0,puente:Array.isArray(r.puente)?r.puente.slice(0,20).map(String):[]})).sort((a,b)=>b.kg-a.kg||a.palitos-b.palitos).filter(r=>{const k=nkey(r.name);if(seen.has(k))return false;seen.add(k);return true})}
 function pzSvg(pz){let h='<svg viewBox="-1.2 -3.6 10.4 6.4" xmlns="http://www.w3.org/2000/svg"><rect x="-1.2" y="0" width="1.2" height="3" fill="#0a2a5a"/><rect x="8" y="0" width="1.2" height="3" fill="#0a2a5a"/><path d="M-1.2 0H0V3M9.2 0H8V3" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width=".05"/>';
 pz.forEach(t=>{const v=t.split(',').map(Number);if(v.length!==5||v.some(x=>!isFinite(x)||Math.abs(x)>9))return;const n=Math.max(1,Math.min(3,v[4]|0));
 h+='<line x1="'+v[0]+'" y1="'+v[1]+'" x2="'+v[2]+'" y2="'+v[3]+'" stroke="#5a3414" stroke-width="'+(.16+n*.09)+'" stroke-linecap="round"/><line x1="'+v[0]+'" y1="'+v[1]+'" x2="'+v[2]+'" y2="'+v[3]+'" stroke="#e8b676" stroke-width="'+(.08+n*.09)+'" stroke-linecap="round"/>'});
 return h+'<circle cx="4" cy="0" r=".16" fill="none" stroke="#ff4d42" stroke-width=".07"/></svg>'}
 let shownList=[];
+function nkey(n){return String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim()}
+function ago(t){if(!t)return '';const m=Math.round((Date.now()-t)/60000);return m<1?'ahora':m<60?'hace '+m+' min':'hace '+Math.floor(m/60)+' h '+(m%60)+' min'}
+function participants(){const src=jugShared?dbJug:Object.entries(jugL).map(([id,r])=>({id,...r}));const by={};
+src.forEach(r=>{const name=String(r.name||'').slice(0,24);if(!name)return;const k=nkey(name);const t=Number(r.t)||0;
+if(!by[k]||t>by[k].t)by[k]={id:String(r.id),name,rol:['Alumno','Maestro','Visita'].includes(r.rol)?r.rol:'Visita',t}});
+return Object.values(by).sort((a,b)=>b.t-a.t)}
+const ICON={};document.querySelectorAll('.role').forEach(b=>ICON[b.dataset.r]=b.querySelector('svg').outerHTML);
+function rowP(r){return '<li class="hid'+(player&&nkey(player.name)===nkey(r.name)?' me':'')+'"><span class="ric '+r.rol+'" title="'+r.rol+'">'+ICON[r.rol]+'</span><span class="who"><b>'+esc(r.name)+'</b><span>'+r.rol+'</span></span></li>'}
 function row(r,i){return '<li class="'+(r.id===myId?'me':'')+'"><span class="med">'+(i+1)+'</span>'+(ADMIN?'<button type="button" class="th" data-pz="'+esc(r.id)+'" aria-label="Ver el puente de '+esc(r.name)+'">'+(r.puente.length?pzSvg(r.puente):'')+'</button>':'')+'<span class="who"><b>'+esc(r.name)+'</b><span>'+esc(r.carrera)+' · '+esc(r.rol)+'</span></span><span class="kg">'+r.kg.toFixed(1)+' kg<small>'+r.palitos+' palitos</small></span></li>'}
-function renderBoard(){const L=list();shownList=L;$('#list').innerHTML=L.length?L.slice(0,10).map(row).join(''):'<li class="empty" style="display:block">Aún no hay puentes. ¡Sé el primero!</li>';
-$('#mini').innerHTML=L.length?L.slice(0,3).map(row).join(''):'<li class="empty" style="display:block;background:#eef1f6">Nadie ha jugado todavía.</li>';
+function renderBoard(){const L=list();shownList=L;const pub=ADMIN||showScores;
+$('#bTitle').textContent=pub?'Los mejores puentes':'Participantes';$('#miniTitle').textContent=pub?'Van ganando':'Últimos participantes';
+if(pub){$('#list').innerHTML=L.length?L.slice(0,10).map(row).join(''):'<li class="empty" style="display:block">Aún no hay puentes. ¡Sé el primero!</li>';
+$('#mini').innerHTML=L.length?L.slice(0,3).map(row).join(''):'<li class="empty" style="display:block;background:#eef1f6">Nadie ha jugado todavía.</li>'}
+else{const J=participants();$('#list').innerHTML=J.length?J.slice(0,30).map(rowP).join(''):'<li class="empty" style="display:block">Aún no hay participantes. ¡Sé el primero!</li>';
+$('#mini').innerHTML=J.length?J.slice(0,3).map(rowP).join(''):'<li class="empty" style="display:block;background:#eef1f6">Nadie ha jugado todavía.</li>'}
+if(ADMIN){$('#swShow').checked=showScores;$('#swTxt').innerHTML='Tabla de ranking <b>'+(showScores?'visible':'oculta')+'</b> para el público';
+$('#swNote').textContent=showScores?'El público ve los lugares y los kg.':'El público ve solo el ícono y el nombre de cada participante, sin repetir, el que jugó más recientemente arriba. Aquí en el stand siempre ves el ranking.'}
 $('#where').textContent=fbErr?'⚠️ '+fbErr:shared?(fb?'Tabla en línea: se guarda en internet y se actualiza en vivo.':'Tabla compartida: se actualiza en vivo en todos los dispositivos del equipo.'):(window.FIREBASE_CONFIG?'Conectando con internet…':'Tabla guardada en este dispositivo (Firebase no está configurado).')}
 $('#toBoard').onclick=()=>show('sBoard');
 $('#next').onclick=()=>{$('#form').reset();player=null;show('sReg');$('#fName').focus()};
 $('#wipe').onclick=()=>$('#ask').classList.add('on');$('#askNo').onclick=()=>$('#ask').classList.remove('on');
 $('#askYes').onclick=async()=>{$('#ask').classList.remove('on');local={};persist();if(col&&shared){for(const r of dbScores){try{await col.doc(r.id).delete()}catch(e){toast('Solo el dueño puede borrar la tabla compartida');break}}}renderBoard()};
 renderBoard();ui();
-document.body.classList.toggle('adm',ADMIN);if(ADMIN)$('#gal').style.display='';
+document.body.classList.toggle('adm',ADMIN);if(ADMIN){$('#gal').style.display='';$('#admBox').style.display=''}
+$('#swShow').onchange=async e=>{const v=e.target.checked;showScores=v;try{localStorage.setItem('retopuente-mostrar',v?'1':'0')}catch(_){}
+renderBoard();if(fb&&fb.setShow){try{await fb.setShow(v);toast(v?'El público ya ve el ranking':'Ranking oculto para el público')}catch(err){console.error(err);toast('No se pudo cambiar en internet: revisa las reglas de Firestore')}}else toast('Cambiado solo en este dispositivo (sin Firebase)')};
+renderBoard();
 if(!ADMIN){$('#qrBtn').style.display='none';$('#wipe').style.display='none'}
 window.rpReady=api=>{fb=api;$('#wipe').style.display='none';$('#csv').style.display=ADMIN?'':'none';
+if(api.subscribeShow)api.subscribeShow(v=>{showScores=v;try{localStorage.setItem('retopuente-mostrar',v?'1':'0')}catch(_){}renderBoard()},e=>console.error('ajustes',e));
+if(api.subscribePlayers)api.subscribePlayers(L=>{jugShared=true;dbJug=L;renderBoard()},e=>console.error('jugadores',e));
 api.subscribe(L=>{shared=true;dbScores=L;renderBoard()},e=>{console.error(e);shared=false;fbErr='No se pudo leer la tabla en internet ('+(e.code||e.message)+'). Revisa que las reglas de Firestore estén publicadas.';renderBoard()})};
 $('#csv').onclick=async()=>{try{const P=await fb.listPlayers(),best={};dbScores.forEach(r=>best[r.id]=r);
 const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
@@ -394,7 +433,10 @@ window.rpReady&&window.rpReady({
 saveScore:(id,r)=>fs.setDoc(fs.doc(db,'scores',id),r),
 savePlayer:(id,r)=>fs.setDoc(fs.doc(db,'jugadores',id),r),
 listPlayers:async()=>(await fs.getDocs(fs.collection(db,'jugadores'))).docs.map(d=>({id:d.id,...d.data()})),
-subscribe:(ok,bad)=>fs.onSnapshot(fs.query(fs.collection(db,'scores'),fs.orderBy('kg','desc'),fs.limit(50)),q=>ok(q.docs.map(d=>({id:d.id,...d.data()}))),bad)});
+subscribe:(ok,bad)=>fs.onSnapshot(fs.query(fs.collection(db,'scores'),fs.orderBy('kg','desc'),fs.limit(300)),q=>ok(q.docs.map(d=>({id:d.id,...d.data()}))),bad),
+subscribePlayers:(ok,bad)=>fs.onSnapshot(fs.query(fs.collection(db,'jugadores'),fs.orderBy('t','desc'),fs.limit(300)),q=>ok(q.docs.map(d=>({id:d.id,...d.data()}))),bad),
+setShow:v=>fs.setDoc(fs.doc(db,'ajustes','tabla'),{mostrar:v,t:Date.now()}),
+subscribeShow:(ok,bad)=>fs.onSnapshot(fs.doc(db,'ajustes','tabla'),d=>ok(d.exists()?d.data().mostrar!==false:true),bad)});
 }catch(e){console.error('Firebase',e)}}
 </script>
 </body>
